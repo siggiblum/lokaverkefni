@@ -2,11 +2,17 @@ import pandas as pd
 import openpyxl
 import numpy as np
 
-#Vantar gogn fra indices
+#!#########################################################################################################
+#!MUUNA AÐ NOTA RÉTT GÖGN Í ÞESSI
+#!#########################################################################################################
 
-fyrirtaeki = pd.read_excel("lokaverkefni/gogn.xlsx", sheet_name="sheet 4", index_col="Dates", na_values=["#N/A N/A", "#N/A"])
-indices = pd.read_excel("lokaverkefni/gogn.xlsx", sheet_name="indices", index_col="Dates", na_values=["#N/A N/A", "#N/A"])
-iceland_indices = pd.read_excel("lokaverkefni/gogn.xlsx", sheet_name="sheet 3", index_col="Dates", na_values=["#N/A N/A", "#N/A"])
+fyrirtaeki = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
+fyrirtaeki.set_index("Dates", inplace=True)
+indices = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/gogn (1).xlsx", sheet_name="Indices", na_values=["#N/A N/A", "#N/A"])
+indices.set_index("Dates", inplace=True)
+iceland_indices = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/gogn (1).xlsx", sheet_name="Sheet3", na_values=["#N/A N/A", "#N/A"])
+iceland_indices.set_index("Dates", inplace=True)
+
 
 fyrirtaeki.index = pd.to_datetime(fyrirtaeki.index)
 indices.index = pd.to_datetime(indices.index)
@@ -20,6 +26,19 @@ indices_2014 = indices[indices.index >= '2014-01-01']
 
 iceland_indices_before_2014 = iceland_indices[iceland_indices.index < '2014-01-01']
 iceland_indices_2014 = iceland_indices[iceland_indices.index >= '2014-01-01']
+
+def calculate_monthly_returns(data):
+    monthly_returns = pd.DataFrame()
+    for column in data.columns:
+        monthly_returns[column] = data[column].pct_change(fill_method=None)
+    return monthly_returns
+
+fyrirtaeki_before_2014_returns = calculate_monthly_returns(fyrirtaeki_before_2014)
+fyrirtaeki_2014_returns = calculate_monthly_returns(fyrirtaeki_2014)
+indices_before_2014_returns = calculate_monthly_returns(indices_before_2014)
+indices_2014_returns = calculate_monthly_returns(indices_2014)
+iceland_indices_before_2014_returns = calculate_monthly_returns(iceland_indices_before_2014)
+iceland_indices_2014_returns = calculate_monthly_returns(iceland_indices_2014)
 
 def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
     # Ensure the index is in datetime format if it's not already
@@ -53,11 +72,7 @@ def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
     return correlation_results
 
 # Calculate correlations for both time periods
-correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014, iceland_indices_before_2014)
-correlation_2014_onwards = calculate_correlation(fyrirtaeki_2014, iceland_indices_2014)
+correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns)
+correlation_2014_onwards = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)
 
-# You can then print or further analyze these correlations
-print("Correlation Before 2014:")
-print(correlation_before_2014)
-print("\nCorrelation 2014 Onwards:")
-print(correlation_2014_onwards)
+def volatility(data):
