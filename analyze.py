@@ -2,6 +2,7 @@ import pandas as pd
 import openpyxl
 import numpy as np
 
+
 #!#########################################################################################################
 #!MUUNA AÐ NOTA RÉTT GÖGN Í ÞESSI
 #!#########################################################################################################
@@ -48,8 +49,8 @@ def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
     # Focus on the OMXIGI Index PX_LAST column from the iceland_indices dataset
     omxigi_px_last = iceland_indices_data['OMXIGI Index PX_LAST']
     
-    # Initialize an empty dictionary to store correlation results
-    correlation_results = {}
+    # Initialize an empty list to store correlation results along with observation counts
+    correlation_results = []
     
     # Iterate through each column in the fyrirtaeki_data dataframe
     for column in fyrirtaeki_data.columns:
@@ -58,21 +59,123 @@ def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
         
         # Ensure there is enough data to calculate a correlation
         if len(common_index) > 1:
-            # Subset the data to only those dates that exist in both dataframes
-            fyrirtaeki_sub = fyrirtaeki_data.loc[common_index, column]
-            omxigi_sub = omxigi_px_last.loc[common_index]
+            # Subset the data to only those dates that exist in both dataframes and drop NaN values
+            fyrirtaeki_sub = fyrirtaeki_data.loc[common_index, column].dropna()
+            omxigi_sub = omxigi_px_last.loc[common_index].dropna()
             
-            # Calculate correlation and store it in the dictionary
-            correlation = fyrirtaeki_sub.corr(omxigi_sub)
-            correlation_results[column] = correlation
+            # Find common index after dropping NaN to ensure both series have the same dates
+            common_index_no_nan = fyrirtaeki_sub.index.intersection(omxigi_sub.index)
+            fyrirtaeki_sub = fyrirtaeki_sub.loc[common_index_no_nan]
+            omxigi_sub = omxigi_sub.loc[common_index_no_nan]
+            
+            # Check again if there's enough data after removing NaNs
+            if len(fyrirtaeki_sub) > 1:
+                # Calculate correlation
+                correlation = fyrirtaeki_sub.corr(omxigi_sub)
+                
+                # Append the column name, correlation, and count of non-NaN observations to the list
+                correlation_results.append({
+                    'Column': column,
+                    'Correlation': correlation,
+                    'Count': len(fyrirtaeki_sub) + 1
+                })
+            else:
+                # If not enough data after dropping NaNs, indicate this in the results
+                correlation_results.append({
+                    'Column': column,
+                    'Correlation': 'Not enough data',
+                    'Count': 0
+                })
         else:
-            # If not enough data, indicate this in the results
-            correlation_results[column] = 'Not enough data for correlation'
+            # If not enough initial data, indicate this in the results
+            correlation_results.append({
+                'Column': column,
+                'Correlation': 'Not enough initial data for correlation',
+                'Count': len(common_index)
+            })
     
-    return correlation_results
+    # Convert the list of dictionaries to a DataFrame
+    result_df = pd.DataFrame(correlation_results)
+    return result_df
 
 # Calculate correlations for both time periods
 correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns)
-correlation_2014_onwards = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)
+correlation_2014 = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)
 
+
+#! Ask fink if it is ok to have monthly data for this
 def volatility(data):
+    result = pd.DataFrame()
+    vol = data.std() * np.sqrt(12)
+    # Convert the series to DataFrame for consistency with your original function's return type
+    result = vol.to_frame(name='Volatility')
+    return result
+
+fyrirtaeki_before_2014_vol = volatility(fyrirtaeki_before_2014_returns)
+fyrirtaeki_2014_vol = volatility(fyrirtaeki_2014_returns)
+indices_before_2014_vol = volatility(indices_before_2014_returns)
+indices_2014_vol = volatility(indices_2014_returns)
+iceland_indices_before_2014_vol = volatility(iceland_indices_before_2014_returns)
+iceland_indices_2014_vol = volatility(iceland_indices_2014_returns)
+
+# with pd.ExcelWriter('correlation_results.xlsx', engine='openpyxl') as writer:
+#     correlation_before_2014.to_excel(writer, sheet_name='Before 2014')
+#     correlation_2014.to_excel(writer, sheet_name='2014')
+
+# with pd.ExcelWriter('volatility_result1.xlsx', engine='openpyxl') as writer:
+#     fyrirtaeki_2014_vol.to_excel(writer, sheet_name='2014')
+#     fyrirtaeki_before_2014_vol.to_excel(writer, sheet_name='Before 2014')
+#     iceland_indices_2014_vol.to_excel(writer, sheet_name = "2014 1")
+#     iceland_indices_before_2014_vol.to_excel(writer, sheet_name = "2014 2")
+
+def calculate_covariance(fyrirtaeki_data, iceland_indices_data):
+    omxigi_px_last = iceland_indices_data['OMXIGI Index PX_LAST']
+    
+    covariance_results = []
+    
+    for column in fyrirtaeki_data.columns:
+        # Calculate the covariance only for overlapping dates
+        common_index = fyrirtaeki_data.index.intersection(omxigi_px_last.index)
+        
+        if len(common_index) > 1:
+            fyrirtaeki_sub = fyrirtaeki_data.loc[common_index, column].dropna()
+            omxigi_sub = omxigi_px_last.loc[common_index].dropna()
+            
+            # Find common index after dropping NaN to ensure both series have the same dates
+            common_index_no_nan = fyrirtaeki_sub.index.intersection(omxigi_sub.index)
+            fyrirtaeki_sub = fyrirtaeki_sub.loc[common_index_no_nan] #Locate W
+            omxigi_sub = omxigi_sub.loc[common_index_no_nan]
+            
+            # Check again if there's enough data after removing NaNs
+            if len(fyrirtaeki_sub) > 1:
+                # Calculate covariance
+                covariance = fyrirtaeki_sub.cov(omxigi_sub)
+                
+                # Append the column name and covariance to the list
+                covariance_results.append({
+                    'Column': column,
+                    'Covariance': covariance
+                })
+            else:
+                # If not enough data after dropping NaNs, indicate this in the results
+                covariance_results.append({
+                    'Column': column,
+                    'Covariance': 'Not enough data'
+                })
+        else:
+            # If not enough initial data, indicate this in the results
+            covariance_results.append({
+                'Column': column,
+                'Covariance': 'Not enough initial data for covariance'
+            })
+    
+    # Convert the list of dictionaries to a DataFrame
+    result_df = pd.DataFrame(covariance_results)
+    return result_df
+
+covariance_before_2014 = calculate_covariance(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns)
+covariance_2014 = calculate_covariance(fyrirtaeki_2014_returns, iceland_indices_2014_returns)
+
+with pd.ExcelWriter('covariance1.xlsx', engine='openpyxl') as writer:
+    covariance_2014.to_excel(writer, sheet_name='2014')
+    covariance_before_2014.to_excel(writer, sheet_name='Before 2014')
