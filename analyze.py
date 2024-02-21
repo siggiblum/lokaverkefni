@@ -6,12 +6,12 @@ import numpy as np
 #!#########################################################################################################
 #!MUUNA AÐ NOTA RÉTT GÖGN Í ÞESSI
 #!#########################################################################################################
-
-fyrirtaeki = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
+fyrirtaeki = pd.read_excel("gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
+# fyrirtaeki = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/Lokaverkefni/lokaverkefni/gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
 fyrirtaeki.set_index("Dates", inplace=True)
-indices = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/gogn (1).xlsx", sheet_name="Indices", na_values=["#N/A N/A", "#N/A"])
+indices = pd.read_excel("gogn (1).xlsx", sheet_name="Indices", na_values=["#N/A N/A", "#N/A"])
 indices.set_index("Dates", inplace=True)
-iceland_indices = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/gogn (1).xlsx", sheet_name="Sheet3", na_values=["#N/A N/A", "#N/A"])
+iceland_indices = pd.read_excel("gogn (1).xlsx", sheet_name="Sheet3", na_values=["#N/A N/A", "#N/A"])
 iceland_indices.set_index("Dates", inplace=True)
 
 
@@ -99,8 +99,8 @@ def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
     return result_df
 
 # Calculate correlations for both time periods
-correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns)
-correlation_2014 = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)
+correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns) #? Important variable
+correlation_2014 = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)#? Important variable
 
 
 #! Ask fink if it is ok to have monthly data for this
@@ -111,12 +111,12 @@ def volatility(data):
     result = vol.to_frame(name='Volatility')
     return result
 
-fyrirtaeki_before_2014_vol = volatility(fyrirtaeki_before_2014_returns)
-fyrirtaeki_2014_vol = volatility(fyrirtaeki_2014_returns)
-indices_before_2014_vol = volatility(indices_before_2014_returns)
-indices_2014_vol = volatility(indices_2014_returns)
-iceland_indices_before_2014_vol = volatility(iceland_indices_before_2014_returns)
-iceland_indices_2014_vol = volatility(iceland_indices_2014_returns)
+fyrirtaeki_before_2014_vol = volatility(fyrirtaeki_before_2014_returns) #? Important variable
+fyrirtaeki_2014_vol = volatility(fyrirtaeki_2014_returns) #? Important variable
+indices_before_2014_vol = volatility(indices_before_2014_returns) #? Important variable
+indices_2014_vol = volatility(indices_2014_returns)#? Important variable
+iceland_indices_before_2014_vol = volatility(iceland_indices_before_2014_returns)#? Important variable
+iceland_indices_2014_vol = volatility(iceland_indices_2014_returns)#? Important variable
 
 # with pd.ExcelWriter('correlation_results.xlsx', engine='openpyxl') as writer:
 #     correlation_before_2014.to_excel(writer, sheet_name='Before 2014')
@@ -173,9 +173,60 @@ def calculate_covariance(fyrirtaeki_data, iceland_indices_data):
     result_df = pd.DataFrame(covariance_results)
     return result_df
 
-covariance_before_2014 = calculate_covariance(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns)
-covariance_2014 = calculate_covariance(fyrirtaeki_2014_returns, iceland_indices_2014_returns)
 
-with pd.ExcelWriter('covariance1.xlsx', engine='openpyxl') as writer:
-    covariance_2014.to_excel(writer, sheet_name='2014')
-    covariance_before_2014.to_excel(writer, sheet_name='Before 2014')
+all_iceland = pd.concat([fyrirtaeki_before_2014, fyrirtaeki_2014], axis=0)
+all_iceland_ind = pd.concat([iceland_indices_before_2014, iceland_indices_2014], axis=0)
+all_iceland_indices = calculate_monthly_returns(all_iceland_ind)
+all_iceland_stocks = calculate_monthly_returns(all_iceland)
+correlation = calculate_correlation(all_iceland_stocks, all_iceland_indices) #? Important variable
+covar_before_2014 = calculate_covariance(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns) #? Important variable
+covar_2014 = calculate_covariance(fyrirtaeki_2014_returns, iceland_indices_2014_returns) #? Important variable
+covariance = calculate_covariance(all_iceland_stocks, all_iceland_indices) #? Important variable
+
+
+# with pd.ExcelWriter('fm.xlsx', engine='openpyxl') as writer:
+#     all_iceland_indices.to_excel(writer, sheet_name='Before 2014')
+#     all_iceland_stock.to_excel(writer, sheet_name='2014')
+
+#BETA
+def beta(fyrirtaeki_data, market_data):
+    omxigi_px_last = market_data['OMXIGI Index PX_LAST']
+    beta_result = []
+
+    for column in fyrirtaeki_data.columns:
+        # Combine stock and market data into a single DataFrame for overlapping dates
+        combined_data = pd.DataFrame({
+            'stock': fyrirtaeki_data[column],
+            'market': omxigi_px_last
+        }).dropna()  # Drop rows where either stock or market data is NaN
+
+        # Ensure there's enough data after dropping NaNs
+        if len(combined_data) > 1:
+            # Calculate covariance between the stock and market returns
+            covariance = combined_data['stock'].cov(combined_data['market'])
+            
+            # Calculate variance of the market for the same period
+            variance = combined_data['market'].var()
+
+            # Calculate the beta using the calculated variance of the market
+            beta_value = covariance / variance
+
+            beta_result.append({
+                'Column': column,
+                'Beta': beta_value
+            })
+        else:
+            # If not enough data after dropping NaNs, indicate this in the results
+            beta_result.append({
+                'Column': column,
+                'Beta': 'Not enough data'
+            })
+
+    # Convert the list of dictionaries to a DataFrame
+    result_df = pd.DataFrame(beta_result)
+    return result_df
+
+  
+betas = beta(all_iceland_stocks, all_iceland_indices) #? Important variable
+for idx, row in betas.iterrows():
+    print(row['Column'], 'beta', row['Beta'])
