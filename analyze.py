@@ -6,8 +6,12 @@ import matplotlib.pyplot as plt
 
 
 #!#########################################################################################################
+<<<<<<< HEAD
+#!GJGB10 Index PX_LAST is wrong
+=======
 #!MUUNA AÐ NOTA RÉTT GÖGN Í ÞESSI
 #! Spurja pabba med eimskip
+>>>>>>> 7a4dcd1d6772415e0765128a2871d52a7e6bc551
 #!#########################################################################################################
 fyrirtaeki = pd.read_excel("gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
 # fyrirtaeki = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/Lokaverkefni/lokaverkefni/gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
