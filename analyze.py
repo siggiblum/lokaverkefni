@@ -4,14 +4,8 @@ import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
-
 #!#########################################################################################################
-<<<<<<< HEAD
 #!GJGB10 Index PX_LAST is wrong
-=======
-#!MUUNA AÐ NOTA RÉTT GÖGN Í ÞESSI
-#! Spurja pabba med eimskip
->>>>>>> 7a4dcd1d6772415e0765128a2871d52a7e6bc551
 #!#########################################################################################################
 fyrirtaeki = pd.read_excel("gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
 # fyrirtaeki = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/Lokaverkefni/lokaverkefni/gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
@@ -20,7 +14,6 @@ indices = pd.read_excel("gogn (1).xlsx", sheet_name="Indices", na_values=["#N/A 
 indices.set_index("Dates", inplace=True)
 iceland_indices = pd.read_excel("gogn (1).xlsx", sheet_name="Sheet3", na_values=["#N/A N/A", "#N/A"])
 iceland_indices.set_index("Dates", inplace=True)
-
 
 fyrirtaeki.index = pd.to_datetime(fyrirtaeki.index)
 indices.index = pd.to_datetime(indices.index)
@@ -109,7 +102,6 @@ def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
 correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns) #? Important variable
 correlation_2014 = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)#? Important variable
 
-
 #! Ask fink if it is ok to have monthly data for this
 def volatility(data):
     result = pd.DataFrame()
@@ -184,7 +176,6 @@ def calculate_covariance(fyrirtaeki_data, iceland_indices_data):
     result_df = pd.DataFrame(covariance_results)
     return result_df
 
-
 all_iceland = pd.concat([fyrirtaeki_before_2014, fyrirtaeki_2014], axis=0)
 all_iceland_ind = pd.concat([iceland_indices_before_2014, iceland_indices_2014], axis=0)
 all_iceland_indices = calculate_monthly_returns(all_iceland_ind)
@@ -193,7 +184,6 @@ correlation = calculate_correlation(all_iceland_stocks, all_iceland_indices) #? 
 covar_before_2014 = calculate_covariance(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns) #? Important variable
 covar_2014 = calculate_covariance(fyrirtaeki_2014_returns, iceland_indices_2014_returns) #? Important variable
 covariance = calculate_covariance(all_iceland_stocks, all_iceland_indices) #? Important variable
-
 
 # with pd.ExcelWriter('fm.xlsx', engine='openpyxl') as writer:
 #     all_iceland_indices.to_excel(writer, sheet_name='Before 2014')
@@ -239,7 +229,6 @@ def beta(fyrirtaeki_data, market_data):
   
 betas = beta(all_iceland_stocks, all_iceland_indices) #? Important variable
 
-
 #Building the efficient frontier
 all_ind_return = pd.concat([indices_2014_returns, iceland_indices_2014_returns], axis = 1)
 all_ind_vol = pd.concat([indices_2014_vol, iceland_indices_2014_vol], axis = 0)
@@ -248,7 +237,6 @@ all_ind_return_cov = all_ind_return.cov() * 12
 # weights = (0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
 # print(np.dot(all_ind_return_mean, weights))
 print(all_ind_vol)
-
 
 def portfolio_performance(weights, mean_returns, cov_matrix):
     returns = np.sum(mean_returns*weights )
@@ -286,3 +274,4 @@ plt.xlabel('Volatility (Standard Deviation)')
 plt.ylabel('Expected Returns')
 plt.colorbar(label='Sharpe Ratio')
 plt.show()
+
