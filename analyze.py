@@ -1,10 +1,12 @@
 import pandas as pd
 import openpyxl
 import numpy as np
+from scipy.optimize import minimize
+import matplotlib.pyplot as plt
 
 
 #!#########################################################################################################
-#!MUUNA AÐ NOTA RÉTT GÖGN Í ÞESSI
+#!GJGB10 Index PX_LAST is wrong
 #!#########################################################################################################
 fyrirtaeki = pd.read_excel("gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
 # fyrirtaeki = pd.read_excel("//center1.ad.local/dfs$/IS/RVK/Desktop02/sigurdurbl/Desktop/Lokaverkefni/lokaverkefni/gogn (1).xlsx", sheet_name="Sheet4", na_values=["#N/A N/A", "#N/A"])
@@ -111,6 +113,10 @@ def volatility(data):
     result = vol.to_frame(name='Volatility')
     return result
 
+columns_to_drop = indices_2014_returns.filter(like='VOLATILITY_360D').columns
+
+# Step 2: Drop these columns from the DataFrame
+indices_2014_returns = indices_2014_returns.drop(columns=columns_to_drop)
 fyrirtaeki_before_2014_vol = volatility(fyrirtaeki_before_2014_returns) #? Important variable
 fyrirtaeki_2014_vol = volatility(fyrirtaeki_2014_returns) #? Important variable
 indices_before_2014_vol = volatility(indices_before_2014_returns) #? Important variable
@@ -222,11 +228,56 @@ def beta(fyrirtaeki_data, market_data):
                 'Beta': 'Not enough data'
             })
 
-    # Convert the list of dictionaries to a DataFrame
     result_df = pd.DataFrame(beta_result)
     return result_df
 
   
 betas = beta(all_iceland_stocks, all_iceland_indices) #? Important variable
-for idx, row in betas.iterrows():
-    print(row['Column'], 'beta', row['Beta'])
+
+
+#Building the efficient frontier
+all_ind_return = pd.concat([indices_2014_returns, iceland_indices_2014_returns], axis = 1)
+all_ind_vol = pd.concat([indices_2014_vol, iceland_indices_2014_vol], axis = 0)
+all_ind_return_mean = all_ind_return.mean() * 12
+all_ind_return_cov = all_ind_return.cov() * 12
+# weights = (0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
+# print(np.dot(all_ind_return_mean, weights))
+print(all_ind_vol)
+
+
+def portfolio_performance(weights, mean_returns, cov_matrix):
+    returns = np.sum(mean_returns*weights )
+    std = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+    return std, returns
+
+#! Þarf annað risk-free-rate
+def negative_sharpe(weights, mean_returns, cov_matrix, risk_free_rate=0.04):
+    p_var, p_ret = portfolio_performance(weights, mean_returns, cov_matrix)
+    return -(p_ret - risk_free_rate) / p_var
+
+def check_sum(weights):
+    return np.sum(weights) - 1
+
+def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=10000, risk_free_rate=0.04):
+    results = np.zeros((3, num_portfolios))
+    weights_record = []
+    num_assets = len(mean_returns)
+    for i in range(num_portfolios):
+        weights = np.random.random(num_assets)
+        weights /= np.sum(weights)
+        weights_record.append(weights)
+        portfolio_stddev, portfolio_return = portfolio_performance(weights, mean_returns, cov_matrix)
+        results[0,i] = portfolio_stddev
+        results[1,i] = portfolio_return
+        results[2,i] = (portfolio_return - risk_free_rate) / portfolio_stddev  # Sharpe Ratio
+    return results, weights_record
+
+results, weights = optimize_portfolio(all_ind_return_mean, all_ind_return_cov)
+for i in range(len(weights)):  # Iterate by index if results and weights are parallel
+    print("Results", results[:, i], ' ', "Weights", weights[i])
+plt.scatter(results[0,:], results[1,:], c=results[2,:], cmap='YlGnBu', marker='o', s=5)
+plt.title('Efficient Frontier')
+plt.xlabel('Volatility (Standard Deviation)')
+plt.ylabel('Expected Returns')
+plt.colorbar(label='Sharpe Ratio')
+plt.show()
