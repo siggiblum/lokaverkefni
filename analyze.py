@@ -102,18 +102,18 @@ def calculate_correlation(fyrirtaeki_data, iceland_indices_data):
 correlation_before_2014 = calculate_correlation(fyrirtaeki_before_2014_returns, iceland_indices_before_2014_returns) #? Important variable
 correlation_2014 = calculate_correlation(fyrirtaeki_2014_returns, iceland_indices_2014_returns)#? Important variable
 
-#! Ask fink if it is ok to have monthly data for this
 def volatility(data):
     result = pd.DataFrame()
     vol = data.std() * np.sqrt(12)
     # Convert the series to DataFrame for consistency with your original function's return type
     result = vol.to_frame(name='Volatility')
     return result
-
 columns_to_drop = indices_2014_returns.filter(like='VOLATILITY_360D').columns
-
-# Step 2: Drop these columns from the DataFrame
 indices_2014_returns = indices_2014_returns.drop(columns=columns_to_drop)
+
+columns_to_drop_before_2014 = indices_before_2014_returns.filter(like="VOLATILITY_360D").columns
+indices_before_2014_returns = indices_before_2014_returns.drop(columns=columns_to_drop_before_2014, errors='ignore')
+
 fyrirtaeki_before_2014_vol = volatility(fyrirtaeki_before_2014_returns) #? Important variable
 fyrirtaeki_2014_vol = volatility(fyrirtaeki_2014_returns) #? Important variable
 indices_before_2014_vol = volatility(indices_before_2014_returns) #? Important variable
@@ -230,13 +230,18 @@ def beta(fyrirtaeki_data, market_data):
 betas = beta(all_iceland_stocks, all_iceland_indices) #? Important variable
 
 #Building the efficient frontier
-all_ind_return = pd.concat([indices_2014_returns, iceland_indices_2014_returns], axis = 1)
+all_ind_return_2014 = pd.concat([indices_2014_returns, iceland_indices_2014_returns], axis = 1)
 all_ind_vol = pd.concat([indices_2014_vol, iceland_indices_2014_vol], axis = 0)
-all_ind_return_mean = all_ind_return.mean() * 12
-all_ind_return_cov = all_ind_return.cov() * 12
+all_ind_return_2014_mean = all_ind_return_2014.mean() * 12
+all_ind_return_2014_cov = all_ind_return_2014.cov() * 12
+
+all_ind_return_before_2014 = pd.concat([iceland_indices_before_2014_returns, indices_before_2014_returns], axis = 1)
+all_ind_before_2014_vol = pd.concat([iceland_indices_before_2014_returns, indices_before_2014_returns], axis = 0)
+all_ind_return_before_2014_mean = all_ind_return_before_2014.mean() * 12
+all_ind_return_before_2014_cov = all_ind_return_before_2014.cov() * 12
+print(all_ind_return_before_2014_mean)
 # weights = (0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
-# print(np.dot(all_ind_return_mean, weights))
-print(all_ind_vol)
+# print(np.dot(all_ind_return_2014_mean, weights))
 
 def portfolio_performance(weights, mean_returns, cov_matrix):
     returns = np.sum(mean_returns*weights )
@@ -251,7 +256,7 @@ def negative_sharpe(weights, mean_returns, cov_matrix, risk_free_rate=0.04):
 def check_sum(weights):
     return np.sum(weights) - 1
 
-def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=10000, risk_free_rate=0.04):
+def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=100, risk_free_rate=0.04):
     results = np.zeros((3, num_portfolios))
     weights_record = []
     num_assets = len(mean_returns)
@@ -265,13 +270,17 @@ def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=10000, risk_free
         results[2,i] = (portfolio_return - risk_free_rate) / portfolio_stddev  # Sharpe Ratio
     return results, weights_record
 
-results, weights = optimize_portfolio(all_ind_return_mean, all_ind_return_cov)
+results, weights = optimize_portfolio(all_ind_return_2014_mean, all_ind_return_2014_cov)
 for i in range(len(weights)):  # Iterate by index if results and weights are parallel
-    print("Results", results[:, i], ' ', "Weights", weights[i])
+    portfolio_std = results[0, i]
+    portfolio_return = results[1, i]
+    portfolio_sharpe_ratio = results[2, i]
+    portfolio_weights = weights[i]
+    print(f"Return: {portfolio_return}, Sharpe Ratio: {portfolio_sharpe_ratio}, Weights: {portfolio_weights}")
+
 plt.scatter(results[0,:], results[1,:], c=results[2,:], cmap='YlGnBu', marker='o', s=5)
 plt.title('Efficient Frontier')
 plt.xlabel('Volatility (Standard Deviation)')
 plt.ylabel('Expected Returns')
 plt.colorbar(label='Sharpe Ratio')
 plt.show()
-
