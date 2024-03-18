@@ -209,79 +209,87 @@ def beta(fyrirtaeki_data, market_data):
             
             # Calculate variance of the market for the same period
             variance = combined_data['market'].var()
-
+            vol_comp = combined_data['stock'].std() * np.sqrt(12)
             # Calculate the beta using the calculated variance of the market
             beta_value = covariance / variance
 
             beta_result.append({
                 'Column': column,
-                'Beta': beta_value
+                'Beta': beta_value,
+                "Observations": len(combined_data),
+                "Average Yearly volatility": vol_comp
             })
         else:
             # If not enough data after dropping NaNs, indicate this in the results
             beta_result.append({
                 'Column': column,
-                'Beta': 'Not enough data'
+                'Beta': 'Not enough data',
+                "Observations": 0,
+                "Average Yearly volatility": 'Not enough data'
             })
-
+    beta_result.append({
+                'Column': "OMXIGI",
+                'Beta': 'Not applicable',
+                "Observations": 236,
+                "Average Yearly volatility": market_data['OMXIGI Index PX_LAST'].std() * np.sqrt(12)
+            })
     result_df = pd.DataFrame(beta_result)
     return result_df
 
   
-betas = beta(all_iceland_stocks, all_iceland_indices) #? Important variable
-print(betas)
-# #Building the efficient frontier
-# all_ind_return_2014 = pd.concat([indices_2014_returns, iceland_indices_2014_returns], axis = 1)
-# all_ind_vol = pd.concat([indices_2014_vol, iceland_indices_2014_vol], axis = 0)
-# all_ind_return_2014_mean = all_ind_return_2014.mean() * 12
-# all_ind_return_2014_cov = all_ind_return_2014.cov() * 12
+# betas = beta(all_iceland_stocks, all_iceland_indices) #? Important variable
+#Building the efficient frontier
+all_ind_return_2014 = pd.concat([indices_2014_returns, iceland_indices_2014_returns], axis = 1)
+all_ind_vol = pd.concat([indices_2014_vol, iceland_indices_2014_vol], axis = 0)
+all_ind_return_2014_mean = all_ind_return_2014.mean() * 12
+all_ind_return_2014_cov = all_ind_return_2014.cov() * 12
 
-# all_ind_return_before_2014 = pd.concat([iceland_indices_before_2014_returns, indices_before_2014_returns], axis = 1)
-# all_ind_before_2014_vol = pd.concat([iceland_indices_before_2014_returns, indices_before_2014_returns], axis = 0)
-# all_ind_return_before_2014_mean = all_ind_return_before_2014.mean() * 12
-# all_ind_return_before_2014_cov = all_ind_return_before_2014.cov() * 12
-# print(all_ind_return_before_2014_mean)
-# # weights = (0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
-# # print(np.dot(all_ind_return_2014_mean, weights))
+all_ind_return_before_2014 = pd.concat([iceland_indices_before_2014_returns, indices_before_2014_returns], axis = 1)
+all_ind_before_2014_vol = pd.concat([iceland_indices_before_2014_returns, indices_before_2014_returns], axis = 0)
+all_ind_return_before_2014_mean = all_ind_return_before_2014.mean() * 12
+all_ind_return_before_2014_cov = all_ind_return_before_2014.cov() * 12
+print(all_ind_return_before_2014_mean)
+# weights = (0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
+# print(np.dot(all_ind_return_2014_mean, weights))
 
-# def portfolio_performance(weights, mean_returns, cov_matrix):
-#     returns = np.sum(mean_returns*weights)
-#     std = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-#     return std, returns
+def portfolio_performance(weights, mean_returns, cov_matrix):
+    returns = np.sum(mean_returns*weights)
+    std = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+    return std, returns
 
-# #! Þarf annað risk-free-rate
-# def negative_sharpe(weights, mean_returns, cov_matrix, risk_free_rate=0.04):
-#     p_var, p_ret = portfolio_performance(weights, mean_returns, cov_matrix)
-#     return -(p_ret - risk_free_rate) / p_var
+#! Þarf annað risk-free-rate
+def negative_sharpe(weights, mean_returns, cov_matrix, risk_free_rate=0.04):
+    p_var, p_ret = portfolio_performance(weights, mean_returns, cov_matrix)
+    return -(p_ret - risk_free_rate) / p_var
 
-# def check_sum(weights):
-#     return np.sum(weights) - 1
+def check_sum(weights):
+    return np.sum(weights) - 1
 
-# def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=2000, risk_free_rate=0.04):
-#     results = np.zeros((3, num_portfolios))
-#     weights_record = []
-#     num_assets = len(mean_returns)
-#     for i in range(num_portfolios):
-#         weights = np.random.random(num_assets)
-#         weights /= np.sum(weights)
-#         weights_record.append(weights)
-#         portfolio_stddev, portfolio_return = portfolio_performance(weights, mean_returns, cov_matrix)
-#         results[0,i] = portfolio_stddev
-#         results[1,i] = portfolio_return
-#         results[2,i] = (portfolio_return - risk_free_rate) / portfolio_stddev  # Sharpe Ratio
-#     return results, weights_record
+def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=2000, risk_free_rate=0.04):
+    results = np.zeros((3, num_portfolios))
+    weights_record = []
+    num_assets = len(mean_returns)
+    for i in range(num_portfolios):
+        weights = np.random.random(num_assets)
+        weights /= np.sum(weights)
+        weights_record.append(weights)
+        portfolio_stddev, portfolio_return = portfolio_performance(weights, mean_returns, cov_matrix)
+        results[0,i] = portfolio_stddev
+        results[1,i] = portfolio_return
+        results[2,i] = (portfolio_return - risk_free_rate) / portfolio_stddev  # Sharpe Ratio
+    return results, weights_record
 
-# results, weights = optimize_portfolio(all_ind_return_2014_mean, all_ind_return_2014_cov)
-# for i in range(len(weights)):  # Iterate by index if results and weights are parallel
-#     portfolio_std = results[0, i]
-#     portfolio_return = results[1, i]
-#     portfolio_sharpe_ratio = results[2, i]
-#     portfolio_weights = weights[i]
-#     print(f"Return: {portfolio_return}, Sharpe Ratio: {portfolio_sharpe_ratio}, Weights: {portfolio_weights}")
+results, weights = optimize_portfolio(all_ind_return_2014_mean, all_ind_return_2014_cov)
+for i in range(len(weights)):  # Iterate by index if results and weights are parallel
+    portfolio_std = results[0, i]
+    portfolio_return = results[1, i]
+    portfolio_sharpe_ratio = results[2, i]
+    portfolio_weights = weights[i]
+    print(f"Return: {portfolio_return}, Sharpe Ratio: {portfolio_sharpe_ratio}, Weights: {portfolio_weights}")
 
-# plt.scatter(results[0,:], results[1,:], c=results[2,:], cmap='YlGnBu', marker='o', s=5)
-# plt.title('Efficient Frontier')
-# plt.xlabel('Volatility (Standard Deviation)')
-# plt.ylabel('Expected Returns')
-# plt.colorbar(label='Sharpe Ratio')
-# plt.show()
+plt.scatter(results[0,:], results[1,:], c=results[2,:], cmap='YlGnBu', marker='o', s=5)
+plt.title('Efficient Frontier')
+plt.xlabel('Volatility (Standard Deviation)')
+plt.ylabel('Expected Returns')
+plt.colorbar(label='Sharpe Ratio')
+plt.show()
