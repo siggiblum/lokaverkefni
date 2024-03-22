@@ -268,48 +268,66 @@ for col in all_ind_04_min_rf:
 
 all_ind_vol = all_ind_vol.drop(columns="rf")
 all_ind_exp_return = all_ind_exp_return.drop(columns="rf")
+all_ind_exp_return["OMXIGI Index PX_LAST"] = 0.0047
 all_ind_return_before_2004_cov = all_ind_return_before_2004.cov()
-
-# filtered_df = all_ind_return_before_2014[all_ind_return_before_2014['Dates'] < pd.Timestamp(2008, 1, 1)].mean()
-# print(filtered_df - risk_free_rate[risk_free_rate["Dates"] < pd.Timestamp(2008, 1, 1)].mean())
-# weights = (0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
-# print(np.dot(all_ind_return_2014_mean, weights))
-
-# exp_ret_omx = 0.0047 #per month frá regression
-# exp_ret_sp = 0.003699454
-# exp_ret_
-
-# def portfolio_performance(weights, mean_returns, cov_matrix):
-#     returns = np.sum(mean_returns*weights)
-#     std = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-#     return std, returns
+iceland_ind_returns = all_ind_return_before_2004[['KAUPGBL IR Equity PX_LAST', "OMXIGI Index PX_LAST"]]
+iceland_ind_returns_cov = iceland_ind_returns.cov()
 
 
-# def optimize_portfolio(mean_returns, cov_matrix, num_portfolios=1000, risk_free_rate=0.04):
-#     results = np.zeros((3, num_portfolios))
-#     weights_record = []
-#     num_assets = len(mean_returns)
-#     for i in range(num_portfolios):
-#         weights = np.random.random(num_assets)
-#         weights /= np.sum(weights)
-#         weights_record.append(weights)
-#         portfolio_stddev, portfolio_return = portfolio_performance(weights, mean_returns, cov_matrix)
-#         results[0,i] = portfolio_stddev
-#         results[1,i] = portfolio_return
-#         results[2,i] = (portfolio_return - risk_free_rate) / portfolio_stddev  # Sharpe Ratio
-#     return results, weights_record
+def portfolio_performance(weights, mean_returns, cov_matrix):
+    returns = np.sum(mean_returns*weights)
+    std = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+    return std, returns
 
-# results, weights = optimize_portfolio(all_ind_return_before_2014_mean, all_ind_return_before_2014_cov)
-# for i in range(len(weights)):  # Iterate by index if results and weights are parallel
-#     portfolio_std = results[0, i]
-#     portfolio_return = results[1, i]
-#     portfolio_sharpe_ratio = results[2, i]
-#     portfolio_weights = weights[i]
-#     print(f"Return: {portfolio_return}, Sharpe Ratio: {portfolio_sharpe_ratio}, Weights: {portfolio_weights}")
+def min_variance(mean_returns, cov_matrix, target_return):
+    num_assets = len(mean_returns)
+    args = (mean_returns, cov_matrix)
+    constraints = ({'type': 'eq', 'fun': lambda x: portfolio_performance(x, mean_returns, cov_matrix)[1] - target_return},
+                   {'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    bounds = tuple((0, 1) for asset in range(num_assets))
+    result = minimize(portfolio_volatility, num_assets*[1./num_assets,], args=args, method='SLSQP', bounds=bounds, constraints=constraints)
+    return result
 
-# plt.scatter(results[0,:], results[1,:], c=results[2,:], cmap='YlGnBu', marker='o', s=5)
-# plt.title('Efficient Frontier')
-# plt.xlabel('Volatility (Standard Deviation)')
-# plt.ylabel('Expected Returns')
-# plt.colorbar(label='Sharpe Ratio')
-# plt.show()
+def portfolio_volatility(weights, mean_returns, cov_matrix):
+    return portfolio_performance(weights, mean_returns, cov_matrix)[0]
+
+def calculate_efficient_frontier(mean_returns, cov_matrix, returns_range):
+    eff_frontier = []
+    for ret in returns_range:
+        res = min_variance(mean_returns, cov_matrix, ret)
+        std, return_ = portfolio_performance(res.x, mean_returns, cov_matrix)
+        eff_frontier.append((std, return_))
+    return zip(*eff_frontier)  # Unzip into two lists
+
+# Example usage
+mean_returns = np.array(all_ind_exp_return.squeeze())  # Ensure mean_returns is a 1D numpy array
+cov_matrix = all_ind_return_before_2004_cov.values  # Ensure cov_matrix is a numpy array
+
+returns_range = np.linspace(min(mean_returns), max(mean_returns), 500)  # Define range of target returns
+stds, returns = calculate_efficient_frontier(mean_returns, cov_matrix, returns_range)
+stds = np.array(stds) * np.sqrt(12)
+print("us",returns)
+returns = np.array(returns) + 1
+returns = np.power(returns, 12)
+print(returns)
+returns = returns - 1
+
+iceland_ind_returns_mean = iceland_ind_returns.mean()
+mean_returns = np.array(iceland_ind_returns_mean.squeeze())  # Ensure mean_returns is a 1D numpy array
+cov_matrix = iceland_ind_returns_cov.values  # Ensure cov_matrix is a numpy array
+
+returns_range = np.linspace(min(mean_returns), max(mean_returns), 500)  # Define range of target returns
+stds_iceland, returns_iceland = calculate_efficient_frontier(mean_returns, cov_matrix, returns_range)
+stds_iceland = np.array(stds_iceland) * np.sqrt(12)
+print("iceland", returns)
+returns_iceland = np.array(returns_iceland) + 1
+returns_iceland = np.power(returns_iceland, 12)
+returns_iceland = returns_iceland - 1
+print(returns)
+
+plt.plot(stds, returns, 'r--')
+plt.plot(stds_iceland, returns_iceland, 'r--')
+plt.xlabel('Volatility (Standard Deviation)')
+plt.ylabel('Expected Returns')
+plt.title('Efficient Frontier')
+plt.show()
