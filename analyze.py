@@ -268,7 +268,13 @@ for col in all_ind_04_min_rf:
 
 all_ind_vol = all_ind_vol.drop(columns="rf")
 all_ind_exp_return = all_ind_exp_return.drop(columns="rf")
-all_ind_exp_return["OMXIGI Index PX_LAST"] = 0.0047
+all_ind_exp_return["OMXIGI Index PX_LAST"] = 0.02155
+all_ind_exp_return["LBUSTRUU Index PX_LAST"] = all_ind_exp_return["LBUSTRUU Index PX_LAST"] * 0.9982
+all_ind_exp_return["SPX Index PX_LAST"] = all_ind_exp_return["SPX Index PX_LAST"] * 0.9982
+all_ind_exp_return["SXXP Index PX_LAST"] = all_ind_exp_return["SXXP Index PX_LAST"] * 1.0012
+all_ind_exp_return["LP06TREU Index PX_LAST"] = all_ind_exp_return["LP06TREU Index PX_LAST"] * 1.0012
+
+all_ind_return_before_2004 = all_ind_return_before_2004.drop(columns=["GJGB10 Index PX_LAST", "NKY Index PX_LAST"])
 all_ind_return_before_2004_cov = all_ind_return_before_2004.cov()
 iceland_ind_returns = all_ind_return_before_2004[['KAUPGBL IR Equity PX_LAST', "OMXIGI Index PX_LAST"]]
 iceland_ind_returns_cov = iceland_ind_returns.cov()
@@ -299,35 +305,79 @@ def calculate_efficient_frontier(mean_returns, cov_matrix, returns_range):
         eff_frontier.append((std, return_))
     return zip(*eff_frontier)  # Unzip into two lists
 
+def calculate_efficient_frontierrr(mean_returns, cov_matrix, returns_range):
+    eff_frontier = []
+    weights_record = []  # To keep track of weights for each point on the frontier
+    for ret in returns_range:
+        res = min_variance(mean_returns, cov_matrix, ret)
+        std, return_ = portfolio_performance(res.x, mean_returns, cov_matrix)
+        eff_frontier.append((std, return_))
+        weights_record.append(res.x)  # Save the weights
+    return eff_frontier, weights_record
+
 # Example usage
+all_ind_exp_return = all_ind_exp_return.drop(columns=["GJGB10 Index PX_LAST", "NKY Index PX_LAST"])
 mean_returns = np.array(all_ind_exp_return.squeeze())  # Ensure mean_returns is a 1D numpy array
+print(all_ind_exp_return)
 cov_matrix = all_ind_return_before_2004_cov.values  # Ensure cov_matrix is a numpy array
 
 returns_range = np.linspace(min(mean_returns), max(mean_returns), 500)  # Define range of target returns
 stds, returns = calculate_efficient_frontier(mean_returns, cov_matrix, returns_range)
 stds = np.array(stds) * np.sqrt(12)
-print("us",returns)
 returns = np.array(returns) + 1
 returns = np.power(returns, 12)
-print(returns)
 returns = returns - 1
 
-iceland_ind_returns_mean = iceland_ind_returns.mean()
-mean_returns = np.array(iceland_ind_returns_mean.squeeze())  # Ensure mean_returns is a 1D numpy array
-cov_matrix = iceland_ind_returns_cov.values  # Ensure cov_matrix is a numpy array
+eff_frontier_data, weights_data = calculate_efficient_frontierrr(mean_returns, cov_matrix, returns_range)
 
-returns_range = np.linspace(min(mean_returns), max(mean_returns), 500)  # Define range of target returns
-stds_iceland, returns_iceland = calculate_efficient_frontier(mean_returns, cov_matrix, returns_range)
-stds_iceland = np.array(stds_iceland) * np.sqrt(12)
-print("iceland", returns)
-returns_iceland = np.array(returns_iceland) + 1
-returns_iceland = np.power(returns_iceland, 12)
-returns_iceland = returns_iceland - 1
-print(returns)
+stds, returns = zip(*eff_frontier_data)  # Unzip into separate lists
 
-plt.plot(stds, returns, 'r--')
-plt.plot(stds_iceland, returns_iceland, 'r--')
-plt.xlabel('Volatility (Standard Deviation)')
-plt.ylabel('Expected Returns')
-plt.title('Efficient Frontier')
-plt.show()
+# Multiply by sqrt(12) to annualize if the data is monthly
+stds = np.array(stds) * np.sqrt(12)
+returns = np.array(returns) + 1
+returns = np.power(returns, 12) - 1
+
+df = pd.DataFrame({
+    'Volatility': stds,
+    'Expected Return': returns
+})
+
+# Add weights to the DataFrame
+for i in range(len(weights_data[0])):
+    df[f'Weight Asset {i+1}'] = [w[i] for w in weights_data]
+print(df)
+# # # Export to Excel
+df.to_excel('efficient_frontier_usa2.xlsx', index=False)
+
+
+
+# iceland_ind_returns_mean = iceland_ind_returns.mean()
+# iceland_ind_returns_mean["OMXIGI Index PX_LAST"] =  0.02155
+# mean_returns = np.array(iceland_ind_returns_mean.squeeze())  # Ensure mean_returns is a 1D numpy array
+# cov_matrix = iceland_ind_returns_cov.values  # Ensure cov_matrix is a numpy array
+
+# returns_range = np.linspace(min(mean_returns), max(mean_returns), 500)  # Define range of target returns
+# stds_iceland, returns_iceland = calculate_efficient_frontier(mean_returns, cov_matrix, returns_range)
+# stds_iceland = np.array(stds_iceland) * np.sqrt(12)
+# returns_iceland = np.array(returns_iceland) + 1
+# returns_iceland = np.power(returns_iceland, 12)
+# returns_iceland = returns_iceland - 1
+
+# weights_iceland = [res.x for ret in returns_range for res in [min_variance(mean_returns, cov_matrix, ret)]]
+
+# df = pd.DataFrame({
+#     'Volatility': stds_iceland,
+#     'Expected Return': returns_iceland,
+#     'Weight Asset 1': [w[0] for w in weights_iceland],
+#     'Weight Asset 2': [w[1] for w in weights_iceland]
+#     # Add more columns if there are more than two assets
+# })
+# print(df)
+# print(iceland_ind_returns_mean)
+    
+# plt.plot(stds_iceland, returns_iceland, 'r--')
+# plt.xlabel('Volatility (Standard Deviation)')
+# plt.ylabel('Expected Returns')
+# plt.title('Efficient Frontier')
+# plt.show()
+# df.to_excel('efficient_frontier_usa1.xlsx', index=False)
